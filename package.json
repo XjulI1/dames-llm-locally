@@ -1,0 +1,15 @@
+{
+  "name": "dames-llm",
+  "version": "1.0.0",
+  "description": "Deux agents LLM locaux qui jouent aux dames internationales via Ollama",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "web": "node server.js"
+  },
+  "dependencies": {
+    "ollama": "^0.5.9",
+    "chalk": "^5.3.0"
+  }
+}

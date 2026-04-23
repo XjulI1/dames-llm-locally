@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<title>Dames LLM — duel local</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #1a1a1a;
+    --panel: #252525;
+    --panel-2: #2e2e2e;
+    --text: #e8e8e8;
+    --muted: #888;
+    --accent: #f7b500;
+    --square-dark: #8b4513;
+    --square-light: #e8c38a;
+    --white-piece: #f5f5f5;
+    --black-piece: #1a1a1a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 24px;
+    min-height: 100vh;
+  }
+  .wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: auto 340px;
+    gap: 24px;
+  }
+  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } }
+  h1 { font-size: 20px; font-weight: 500; margin: 0 0 16px; }
+  h1 .sub { color: var(--muted); font-weight: 400; font-size: 14px; margin-left: 8px; }
+
+  .board-wrap {
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 4px;
+    align-items: start;
+  }
+  .ranks {
+    display: grid;
+    grid-template-rows: repeat(10, 56px);
+    font-size: 11px;
+    color: var(--muted);
+    padding-right: 4px;
+  }
+  .ranks div { display: flex; align-items: center; justify-content: flex-end; }
+  .board {
+    display: grid;
+    grid-template-columns: repeat(10, 56px);
+    grid-template-rows: repeat(10, 56px);
+    border: 3px solid #3a2a1a;
+    border-radius: 4px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
+  .square {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .square.light { background: var(--square-light); }
+  .square.dark  { background: var(--square-dark); }
+  .sq-num {
+    position: absolute;
+    top: 3px;
+    left: 4px;
+    font-size: 10px;
+    color: rgba(255,255,255,0.45);
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
+  .square.last-from, .square.last-to {
+    box-shadow: inset 0 0 0 3px var(--accent);
+  }
+  .square.captured::after {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    border: 2px dashed rgba(255,80,80,0.8);
+    border-radius: 6px;
+  }
+  .piece {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5), inset 0 -2px 4px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+  }
+  .piece.w { background: radial-gradient(circle at 32% 30%, #fff, #aaa 80%); }
+  .piece.b { background: radial-gradient(circle at 32% 30%, #555, #0a0a0a 80%); color: #eee; }
+  .piece.w.k::after { content: '♛'; color: #c89020; }
+  .piece.b.k::after { content: '♛'; color: #f7b500; }
+
+  .files {
+    grid-column: 2;
+    display: grid;
+    grid-template-columns: repeat(10, 56px);
+    padding-top: 4px;
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .panel {
+    background: var(--panel);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .controls button {
+    background: #4a9eff;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    width: 100%;
+  }
+  .controls button:hover:not(:disabled) { background: #5aaeff; }
+  .controls button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .players { margin: 16px 0; }
+  .player {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background: var(--panel-2);
+    margin-bottom: 6px;
+    font-size: 14px;
+    border: 2px solid transparent;
+    transition: border-color 0.2s;
+  }
+  .player.active { border-color: var(--accent); }
+  .player .dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+  .player .dot.w { background: var(--white-piece); }
+  .player .dot.b { background: var(--black-piece); border: 1px solid #555; }
+  .player .model { color: var(--muted); font-size: 12px; font-family: monospace; }
+  .player .material { color: var(--muted); font-size: 12px; margin-left: auto; padding-left: 8px; }
+
+  .status {
+    padding: 10px 12px;
+    background: var(--panel-2);
+    border-radius: 6px;
+    font-size: 13px;
+    min-height: 40px;
+    margin-bottom: 12px;
+  }
+  .status.thinking { color: var(--accent); }
+  .status.win { color: #4aff7a; font-weight: 500; }
+
+  .moves-head { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .moves {
+    max-height: 380px;
+    overflow-y: auto;
+    font-family: 'SF Mono', ui-monospace, monospace;
+    font-size: 12px;
+    background: var(--panel-2);
+    border-radius: 6px;
+    padding: 8px;
+  }
+  .move-row { padding: 3px 4px; border-radius: 3px; display: grid; grid-template-columns: 28px 16px 1fr auto; gap: 6px; align-items: baseline; }
+  .move-row:nth-child(odd) { background: rgba(255,255,255,0.02); }
+  .move-row .n { color: var(--muted); }
+  .move-row .side { font-size: 14px; }
+  .move-row .note { color: var(--muted); font-size: 11px; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .move-row .t { color: var(--muted); font-size: 11px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <h1>Dames internationales <span class="sub">duel de LLM locaux</span></h1>
+    <div class="board-wrap">
+      <div class="ranks" id="ranks"></div>
+      <div class="board" id="board"></div>
+      <div></div>
+      <div class="files" id="files"></div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="controls"><button id="start">Lancer une partie</button></div>
+    <div class="players">
+      <div class="player" id="p-b">
+        <div><span class="dot b"></span>Noirs</div>
+        <span class="model" id="model-b">—</span>
+        <span class="material" id="mat-b"></span>
+      </div>
+      <div class="player" id="p-w">
+        <div><span class="dot w"></span>Blancs</div>
+        <span class="model" id="model-w">—</span>
+        <span class="material" id="mat-w"></span>
+      </div>
+    </div>
+    <div class="status" id="status">Prêt à démarrer.</div>
+    <div class="moves-head">Coups joués</div>
+    <div class="moves" id="moves"></div>
+  </div>
+</div>
+<script>
+  const boardEl  = document.getElementById('board')
+  const ranksEl  = document.getElementById('ranks')
+  const filesEl  = document.getElementById('files')
+  const statusEl = document.getElementById('status')
+  const movesEl  = document.getElementById('moves')
+  const startBtn = document.getElementById('start')
+
+  for (let i = 10; i >= 1; i--) ranksEl.insertAdjacentHTML('beforeend', `<div>${i}</div>`)
+  for (const f of 'abcdefghij') filesEl.insertAdjacentHTML('beforeend', `<div>${f}</div>`)
+
+  const isDark = (r, c) => (r + c) % 2 === 0
+  const rcToNum = (r, c) => {
+    if (!isDark(r, c)) return null
+    const idx = r % 2 === 0 ? c / 2 : (c - 1) / 2
+    return r * 5 + idx + 1
+  }
+
+  let currentBoard = null
+  let lastMove = null
+
+  function emptyBoard() {
+    return Array.from({ length: 10 }, () => Array(10).fill('.'))
+  }
+
+  function initialBoard() {
+    const b = emptyBoard()
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 10; c++) if (isDark(r, c)) b[r][c] = 'b'
+    for (let r = 6; r < 10; r++) for (let c = 0; c < 10; c++) if (isDark(r, c)) b[r][c] = 'w'
+    return b
+  }
+
+  function render() {
+    const b = currentBoard || emptyBoard()
+    boardEl.innerHTML = ''
+    for (let r = 0; r < 10; r++) {
+      for (let c = 0; c < 10; c++) {
+        const sq = document.createElement('div')
+        const dark = isDark(r, c)
+        sq.className = 'square ' + (dark ? 'dark' : 'light')
+        if (dark) {
+          const num = document.createElement('span')
+          num.className = 'sq-num'
+          num.textContent = rcToNum(r, c)
+          sq.appendChild(num)
+          const p = b[r][c]
+          if (p !== '.') {
+            const piece = document.createElement('div')
+            const side = (p === 'w' || p === 'W') ? 'w' : 'b'
+            const king = (p === 'W' || p === 'B') ? ' k' : ''
+            piece.className = 'piece ' + side + king
+            sq.appendChild(piece)
+          }
+          if (lastMove) {
+            if (lastMove.from[0] === r && lastMove.from[1] === c) sq.classList.add('last-from')
+            if (lastMove.to[0]   === r && lastMove.to[1]   === c) sq.classList.add('last-to')
+            if (lastMove.captured && lastMove.captured.some(([cr, cc]) => cr === r && cc === c))
+              sq.classList.add('captured')
+          }
+        }
+        boardEl.appendChild(sq)
+      }
+    }
+  }
+
+  currentBoard = initialBoard()
+  render()
+
+  function setActive(turn) {
+    document.getElementById('p-w').classList.toggle('active', turn === 'w')
+    document.getElementById('p-b').classList.toggle('active', turn === 'b')
+  }
+
+  function setMaterial(m) {
+    if (!m) return
+    document.getElementById('mat-w').textContent = `${m.wp}p ${m.wk}D`
+    document.getElementById('mat-b').textContent = `${m.bp}p ${m.bk}D`
+  }
+
+  startBtn.onclick = () => {
+    startBtn.disabled = true
+    movesEl.innerHTML = ''
+    lastMove = null
+    currentBoard = initialBoard()
+    render()
+    statusEl.className = 'status'
+    statusEl.textContent = 'Connexion…'
+
+    const evt = new EventSource('/stream')
+    evt.onmessage = (e) => {
+      const msg = JSON.parse(e.data)
+      switch (msg.type) {
+        case 'init':
+          document.getElementById('model-w').textContent = msg.white
+          document.getElementById('model-b').textContent = msg.black
+          statusEl.textContent = 'Partie démarrée.'
+          break
+        case 'state':
+          currentBoard = msg.board
+          if (msg.lastMove) lastMove = msg.lastMove
+          render()
+          setActive(msg.turn)
+          setMaterial(msg.material)
+          break
+        case 'thinking': {
+          const name = msg.color === 'w' ? 'Blancs' : 'Noirs'
+          statusEl.className = 'status thinking'
+          statusEl.textContent = `${name} (${msg.model}) réfléchit…`
+          break
+        }
+        case 'move': {
+          const name = msg.color === 'w' ? 'Blancs' : 'Noirs'
+          statusEl.className = 'status'
+          statusEl.textContent = `Coup ${msg.moveNumber} — ${name} : ${msg.notation} (${msg.time}s)`
+          const row = document.createElement('div')
+          row.className = 'move-row'
+          const side = msg.color === 'w' ? '○' : '●'
+          row.innerHTML =
+            `<span class="n">${msg.moveNumber}.</span>` +
+            `<span class="side">${side}</span>` +
+            `<span><strong>${msg.notation}</strong> <span class="note">${msg.reasoning || ''}</span></span>` +
+            `<span class="t">${msg.time}s</span>`
+          movesEl.appendChild(row)
+          movesEl.scrollTop = movesEl.scrollHeight
+          break
+        }
+        case 'end':
+          statusEl.className = 'status win'
+          if (msg.winner)
+            statusEl.textContent = `Terminé : ${msg.winner === 'w' ? 'Blancs' : 'Noirs'} gagnent (${msg.reason})`
+          else
+            statusEl.textContent = `Terminé : nulle (${msg.reason})`
+          startBtn.disabled = false
+          evt.close()
+          break
+        case 'error':
+          statusEl.className = 'status'
+          statusEl.textContent = 'Erreur : ' + msg.message
+          startBtn.disabled = false
+          evt.close()
+          break
+      }
+    }
+    evt.onerror = () => {
+      statusEl.textContent = 'Connexion interrompue.'
+      startBtn.disabled = false
+      evt.close()
+    }
+  }
+</script>
+</body>
+</html>
