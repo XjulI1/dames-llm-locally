@@ -1,18 +1,16 @@
-// Serveur HTTP + Server-Sent Events : sert public/index.html et
-// streame les coups d'une partie LLM vs LLM au navigateur.
+// Serveur HTTP + Server-Sent Events.
+// Diffuse l'état du plateau, la pensée du modèle, l'analyse tactique,
+// et déclenche une réflexion post-partie pour alimenter la mémoire.
 import http from 'http'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import {
-  initialPosition,
-  legalMoves,
-  applyMove,
-  isGameOver,
-  moveNotation,
+  initialPosition, legalMoves, applyMove, isGameOver,
   materialCount,
 } from './engine.js'
-import { chooseMove } from './agent.js'
+import { chooseMove, postGameReflection } from './agent.js'
+import { addLesson } from './memory.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.PORT) || 3000
@@ -21,7 +19,8 @@ const CONFIG = {
   white: process.env.WHITE_MODEL || 'llama3.2:3b',
   black: process.env.BLACK_MODEL || 'qwen2.5:3b',
   host: process.env.OLLAMA_HOST || undefined,
-  maxMoves: 150,
+  maxMoves: 200,
+  reflect: process.env.REFLECT !== '0',
 }
 
 const server = http.createServer(async (req, res) => {
@@ -58,6 +57,8 @@ async function runMatch(res) {
   send(res, 'init', { white: CONFIG.white, black: CONFIG.black })
 
   let state = initialPosition()
+  const history = []
+
   send(res, 'state', {
     board: state.board,
     turn: state.turn,
@@ -65,12 +66,11 @@ async function runMatch(res) {
     material: materialCount(state),
   })
 
+  let finalStatus = null
+
   for (let i = 0; i < CONFIG.maxMoves; i++) {
     const status = isGameOver(state)
-    if (status.over) {
-      send(res, 'end', status)
-      return
-    }
+    if (status.over) { finalStatus = status; break }
 
     const legal = legalMoves(state)
     const color = state.turn
@@ -79,45 +79,75 @@ async function runMatch(res) {
     send(res, 'thinking', { color, model })
 
     const t0 = Date.now()
-    const { move, notation, reasoning } = await chooseMove({
-      model,
-      host: CONFIG.host,
-      state,
-      legal,
-      color,
+    const result = await chooseMove({
+      model, host: CONFIG.host, state, legal, color,
     })
     const time = ((Date.now() - t0) / 1000).toFixed(1)
 
-    const from = move.path[0]
-    const to = move.path[move.path.length - 1]
-    const capturedCount = move.captured.length
+    const from = result.move.path[0]
+    const to = result.move.path[result.move.path.length - 1]
 
     send(res, 'move', {
       color,
-      notation,
-      reasoning,
+      notation: result.notation,
+      thinking: result.thinking,
+      confidence: result.confidence,
+      source: result.source,
+      analysis: result.analysis,
       time,
       moveNumber: state.moveNumber,
-      capturedCount,
+      capturedCount: result.move.captured.length,
     })
 
-    state = applyMove(state, move)
+    history.push({
+      moveNumber: state.moveNumber,
+      color,
+      notation: result.notation,
+      thinking: result.thinking,
+      source: result.source,
+    })
+
+    state = applyMove(state, result.move)
 
     send(res, 'state', {
       board: state.board,
       turn: state.turn,
       moveNumber: state.moveNumber,
       material: materialCount(state),
-      lastMove: { from, to, captured: move.captured },
+      lastMove: { from, to, captured: result.move.captured },
     })
   }
 
-  send(res, 'end', { over: true, winner: null, reason: `arrêt après ${CONFIG.maxMoves} coups` })
+  finalStatus = finalStatus || { over: true, winner: null, reason: `arrêt après ${CONFIG.maxMoves} coups` }
+  send(res, 'end', finalStatus)
+
+  // Phase de réflexion post-partie : chaque modèle tire une leçon
+  if (CONFIG.reflect) {
+    send(res, 'reflecting', {})
+    for (const color of ['w', 'b']) {
+      const model = color === 'w' ? CONFIG.white : CONFIG.black
+      const result = finalStatus.winner === color ? 'win'
+                   : finalStatus.winner === null ? 'draw'
+                   : 'loss'
+      try {
+        const lesson = await postGameReflection({
+          model, host: CONFIG.host, color, result, history, finalState: state,
+        })
+        if (lesson) {
+          addLesson({ color, model, result, lesson })
+          send(res, 'lesson', { color, model, result, lesson })
+        }
+      } catch (e) {
+        console.error('post-game reflection error:', e.message)
+      }
+    }
+  }
 }
 
 server.listen(PORT, () => {
-  console.log(`\n  Dames LLM — interface web`)
+  console.log(`\n  Dames LLM — interface web (mode "joueur expérimenté")`)
   console.log(`  Blancs : ${CONFIG.white}`)
   console.log(`  Noirs  : ${CONFIG.black}`)
+  console.log(`  Mémoire : ${CONFIG.reflect ? 'activée' : 'désactivée'}`)
   console.log(`  → http://localhost:${PORT}\n`)
 })

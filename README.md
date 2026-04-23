@@ -1,45 +1,30 @@
-# Dames LLM — deux agents locaux qui s'affrontent
+# Dames LLM — duel de joueurs locaux aguerris
 
-Démo minimale : deux modèles Ollama locaux jouent une partie de dames internationales (10×10, règles FMJD) l'un contre l'autre. Le moteur Node.js tient l'état du plateau, valide les coups et empêche toute triche du modèle.
+Deux modèles Ollama locaux s'affrontent aux dames internationales (10×10, règles FMJD). Les modèles ne sont plus laissés seuls face au plateau : une couche d'analyse tactique déterministe leur fournit, à chaque coup, les outils qu'ils ne savent pas calculer eux-mêmes — de quoi jouer comme des joueurs expérimentés plutôt que des joueurs du dimanche.
 
 ## Prérequis
 
 - Node.js 18+ (testé sur 22)
-- Ollama Desktop lancé (il expose son API sur `http://127.0.0.1:11434`)
+- Ollama Desktop lancé (API sur `http://127.0.0.1:11434`)
 
 ## Installation
 
 ```bash
 cd dames-llm
 npm install
-```
-
-## Télécharger deux modèles
-
-Sur ton MacBook Pro M1 Pro 16 Go, deux modèles 3B tournent bien en parallèle (~2 Go chacun, Ollama les garde chauds) :
-
-```bash
 ollama pull llama3.2:3b
 ollama pull qwen2.5:3b
 ```
 
-Si tu veux pousser un peu, tu peux tester `phi3.5` ou `gemma2:2b`. Éviter deux 7B en même temps sur 16 Go : ça va swapper.
+## Lancer
 
-Astuce : pour que les deux modèles restent chargés en RAM simultanément, lance Ollama avec
-```bash
-OLLAMA_MAX_LOADED_MODELS=2 ollama serve
-```
-(l'app Desktop gère ça automatiquement si la RAM le permet).
-
-## Lancer une partie
-
-### Mode web (recommandé)
+### Mode web
 
 ```bash
 npm run web
 ```
 
-Puis ouvre **http://localhost:3000** dans le navigateur. Clique sur « Lancer une partie » : le plateau se met à jour coup par coup (streaming via Server-Sent Events), avec surbrillance du dernier coup joué, pièces capturées, pensées du modèle et compteur de matériel.
+Puis **http://localhost:3000**.
 
 ### Mode terminal
 
@@ -47,32 +32,86 @@ Puis ouvre **http://localhost:3000** dans le navigateur. Clique sur « Lancer un
 npm start
 ```
 
-Plateau ASCII et journal PDN imprimés dans la console.
-
-### Choix des modèles
+### Changer de modèles
 
 ```bash
 WHITE_MODEL=llama3.2:3b BLACK_MODEL=qwen2.5:3b npm run web
 ```
 
+## Ce qui rend les modèles "expérimentés"
+
+### 1. Évaluateur de position déterministe (`evaluator.js`)
+
+Chaque position est évaluée par une fonction heuristique : matériel (pion = 100, dame = 320), avancement vers la promotion, contrôle du centre, défense de la dernière rangée, pénalité pour pions collés au bord. C'est le socle — ça donne un score numérique que le LLM peut comparer.
+
+### 2. Recherche 1-ply avec minimax
+
+Pour chaque coup légal, le moteur simule : *je joue X, l'adversaire joue sa meilleure réponse, où en est la position ?* Les coups sont classés et étiquetés (`excellent`, `solide`, `discutable`, `mauvais`). Ça suffit à éviter toutes les gaffes type "je suspends un pion gratos".
+
+### 3. Détection de menaces
+
+Avant chaque coup, on calcule : *si je passe mon tour, que prend l'adversaire ?* Les cases des pièces menacées sont signalées dans le prompt, avec la rafle maximale adverse.
+
+### 4. Prompt système enrichi
+
+Le system prompt contient les principes du jeu (prise maximale obligatoire, valeur des dames, importance de la dernière rangée, etc.) et rappelle que le modèle doit raisonner comme un joueur chevronné.
+
+### 5. Chain-of-thought structuré
+
+La réponse attendue est un JSON :
+
+```json
+{
+  "thinking": "raisonnement en 2-4 phrases",
+  "move": "32-28",
+  "confidence": "medium"
+}
+```
+
+Le prompt utilisateur présente la position, le matériel, l'évaluation statique, les menaces, les opportunités, et les 5-6 meilleurs coups candidats pré-annotés — le LLM n'a plus qu'à choisir en arbitrant entre les options.
+
+### 6. Mémoire entre parties (`memory.json`)
+
+À la fin de chaque partie, chaque modèle écrit une leçon actionnable de ~250 caractères. Les 10 dernières leçons du même camp (+ quelques-unes côté adverse) sont réinjectées dans le system prompt des parties suivantes. Désactivable avec `REFLECT=0`.
+
+### 7. Retry avec feedback + fallback
+
+Si le modèle produit un JSON invalide ou un coup absent de la liste légale, on relance avec une température plus haute et l'erreur en contexte. Au bout de 3 échecs, le système joue le coup numéro 1 du ranking (pas un coup aléatoire) et le marque `[fallback]` dans l'interface.
+
+## Ce que tu vois dans l'interface web
+
+- **Plateau** avec surbrillance jaune du dernier coup (départ + arrivée) et contour rouge pointillé des pièces qui viennent d'être capturées
+- **Panneau d'analyse** : phase de jeu, évaluation statique, menaces actives, top 5 des candidats avec leur verdict coloré (vert/bleu/orange/rouge), riposte adverse anticipée
+- **Historique des coups** avec le raisonnement du modèle, son niveau de confiance et le temps de réflexion
+- **Leçons apprises** en bas de page à la fin de chaque partie
+
 ## Structure
 
-- `engine.js` — moteur du jeu (règles, coups légaux, rendu, notation)
-- `agent.js` — wrapper Ollama avec retries et fallback aléatoire si le modèle produit un coup invalide
-- `index.js` — boucle principale (mode terminal)
-- `server.js` — serveur HTTP + Server-Sent Events (mode web)
-- `public/index.html` — interface web
+| Fichier | Rôle |
+|---|---|
+| `engine.js` | Règles FMJD, coups légaux, rendu, notation PDN |
+| `evaluator.js` | Éval de position, minimax 1-ply, détection menaces/opportunités |
+| `agent.js` | Pont Ollama, prompt enrichi, chain-of-thought, réflexion post-partie |
+| `memory.js` | Persistence des leçons entre parties (`memory.json`) |
+| `server.js` | Serveur HTTP + SSE |
+| `index.js` | Mode terminal |
+| `public/index.html` | Interface web |
 
-## Ce qui marche / limites
+## Variables d'environnement
 
-✅ Règles implémentées : mouvements de pions et dames, prises courtes et volantes, prise obligatoire, règle de la rafle maximale, promotion, détection de fin de partie (pat ou nulle 25 coups sans progression).
+- `WHITE_MODEL`, `BLACK_MODEL` — noms Ollama des modèles
+- `OLLAMA_HOST` — hôte non-défaut (ex. `http://remote:11434`)
+- `PORT` — port du serveur web (défaut 3000)
+- `REFLECT=0` — désactiver la phase de réflexion post-partie
 
-⚠️ Le moteur empêche les coups illégaux — si un modèle propose une bêtise, on retry jusqu'à 3 fois avec une température croissante, puis on tire un coup au hasard pour que la partie continue. En pratique, les petits modèles jouent assez mal aux dames : ne t'attends pas à du niveau tournoi. C'est de la démo.
+## Limites honnêtes
 
-## Pistes d'amélioration
+Même enrichis, des modèles 3B ne jouent pas à niveau tournoi. Ils évitent maintenant les gaffes évidentes (pièces en prise, rafles ratées) et respectent les principes de base, mais le jeu tactique complexe (coups préparatoires, sacrifices calculés sur 3-4 plis, finales théoriques) reste hors de portée. Passe à des modèles plus grands ou augmente la profondeur de recherche si tu veux plus.
 
-- Forcer un format de réflexion plus riche (chain-of-thought, évaluation matérielle) pour voir si ça améliore le niveau
-- Logger les parties au format PDN standard pour les rejouer
-- Ajouter un petit rendu HTML/SVG pour l'animation
-- Brancher un vrai moteur (Scan) comme arbitre/commentateur pour annoter les bévues
-# dames-llm-locally
+## Pistes pour aller plus loin
+
+- **Recherche 2-3 plies** : triple le coût CPU mais détecte les tactiques courtes
+- **Opening book FMJD** : les 5-6 premiers coups joués depuis un répertoire connu
+- **Évaluation plus riche** : mobilité des pièces, classique/moderne, structure des pions
+- **Annotation par un vrai moteur** (Scan) en parallèle pour mesurer combien de gaffes on évite
+- **Match-tournoi** : boucle externe qui enchaîne 20-50 parties pour que la mémoire s'épaississe vraiment

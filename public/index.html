@@ -9,9 +9,13 @@
     --bg: #1a1a1a;
     --panel: #252525;
     --panel-2: #2e2e2e;
+    --panel-3: #343434;
     --text: #e8e8e8;
     --muted: #888;
     --accent: #f7b500;
+    --good: #4aff7a;
+    --warn: #ff9d3a;
+    --bad:  #ff5a5a;
     --square-dark: #8b4513;
     --square-light: #e8c38a;
     --white-piece: #f5f5f5;
@@ -27,13 +31,13 @@
     min-height: 100vh;
   }
   .wrap {
-    max-width: 1100px;
+    max-width: 1200px;
     margin: 0 auto;
     display: grid;
-    grid-template-columns: auto 340px;
+    grid-template-columns: auto 380px;
     gap: 24px;
   }
-  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } }
+  @media (max-width: 980px) { .wrap { grid-template-columns: 1fr; } }
   h1 { font-size: 20px; font-weight: 500; margin: 0 0 16px; }
   h1 .sub { color: var(--muted); font-weight: 400; font-size: 14px; margin-left: 8px; }
 
@@ -59,41 +63,24 @@
     border-radius: 4px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.5);
   }
-  .square {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
+  .square { position: relative; display: flex; align-items: center; justify-content: center; }
   .square.light { background: var(--square-light); }
   .square.dark  { background: var(--square-dark); }
   .sq-num {
-    position: absolute;
-    top: 3px;
-    left: 4px;
-    font-size: 10px;
-    color: rgba(255,255,255,0.45);
+    position: absolute; top: 3px; left: 4px;
+    font-size: 10px; color: rgba(255,255,255,0.45);
     font-variant-numeric: tabular-nums;
     pointer-events: none;
   }
-  .square.last-from, .square.last-to {
-    box-shadow: inset 0 0 0 3px var(--accent);
-  }
+  .square.last-from, .square.last-to { box-shadow: inset 0 0 0 3px var(--accent); }
   .square.captured::after {
-    content: '';
-    position: absolute;
-    inset: 4px;
-    border: 2px dashed rgba(255,80,80,0.8);
-    border-radius: 6px;
+    content: ''; position: absolute; inset: 4px;
+    border: 2px dashed rgba(255,80,80,0.8); border-radius: 6px;
   }
   .piece {
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
+    width: 42px; height: 42px; border-radius: 50%;
     box-shadow: 0 2px 4px rgba(0,0,0,0.5), inset 0 -2px 4px rgba(0,0,0,0.3);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: flex; align-items: center; justify-content: center;
     font-size: 22px;
   }
   .piece.w { background: radial-gradient(circle at 32% 30%, #fff, #aaa 80%); }
@@ -111,46 +98,26 @@
     text-align: center;
   }
 
-  .panel {
-    background: var(--panel);
-    border-radius: 10px;
-    padding: 16px;
-  }
+  .panel { background: var(--panel); border-radius: 10px; padding: 16px; }
   .controls button {
-    background: #4a9eff;
-    color: white;
-    border: none;
-    padding: 10px 16px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    width: 100%;
+    background: #4a9eff; color: white; border: none;
+    padding: 10px 16px; border-radius: 6px; cursor: pointer;
+    font-size: 14px; font-weight: 500; width: 100%;
   }
   .controls button:hover:not(:disabled) { background: #5aaeff; }
   .controls button:disabled { opacity: 0.5; cursor: not-allowed; }
 
   .players { margin: 16px 0; }
   .player {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 12px;
-    border-radius: 6px;
-    background: var(--panel-2);
-    margin-bottom: 6px;
-    font-size: 14px;
-    border: 2px solid transparent;
-    transition: border-color 0.2s;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; border-radius: 6px;
+    background: var(--panel-2); margin-bottom: 6px;
+    font-size: 14px; border: 2px solid transparent; transition: border-color 0.2s;
   }
   .player.active { border-color: var(--accent); }
   .player .dot {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    display: inline-block;
-    margin-right: 8px;
-    vertical-align: middle;
+    width: 16px; height: 16px; border-radius: 50%;
+    display: inline-block; margin-right: 8px; vertical-align: middle;
   }
   .player .dot.w { background: var(--white-piece); }
   .player .dot.b { background: var(--black-piece); border: 1px solid #555; }
@@ -158,38 +125,73 @@
   .player .material { color: var(--muted); font-size: 12px; margin-left: auto; padding-left: 8px; }
 
   .status {
-    padding: 10px 12px;
-    background: var(--panel-2);
-    border-radius: 6px;
-    font-size: 13px;
-    min-height: 40px;
-    margin-bottom: 12px;
+    padding: 10px 12px; background: var(--panel-2);
+    border-radius: 6px; font-size: 13px; min-height: 40px; margin-bottom: 12px;
   }
   .status.thinking { color: var(--accent); }
-  .status.win { color: #4aff7a; font-weight: 500; }
+  .status.win { color: var(--good); font-weight: 500; }
 
-  .moves-head { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-  .moves {
-    max-height: 380px;
-    overflow-y: auto;
-    font-family: 'SF Mono', ui-monospace, monospace;
-    font-size: 12px;
-    background: var(--panel-2);
-    border-radius: 6px;
-    padding: 8px;
+  .section-head {
+    font-size: 11px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    margin: 12px 0 6px;
   }
-  .move-row { padding: 3px 4px; border-radius: 3px; display: grid; grid-template-columns: 28px 16px 1fr auto; gap: 6px; align-items: baseline; }
+
+  .analysis {
+    background: var(--panel-2); border-radius: 6px;
+    padding: 10px; font-size: 12px;
+  }
+  .analysis-row { display: flex; justify-content: space-between; padding: 1px 0; }
+  .analysis-row .label { color: var(--muted); }
+
+  .candidates { list-style: none; padding: 0; margin: 6px 0 0; font-family: 'SF Mono', ui-monospace, monospace; font-size: 11px; }
+  .candidates li { display: flex; justify-content: space-between; padding: 2px 4px; border-radius: 3px; }
+  .candidates li.chosen { background: rgba(247, 181, 0, 0.15); color: var(--accent); }
+  .verdict { font-size: 10px; padding: 1px 5px; border-radius: 3px; margin-left: 6px; }
+  .verdict.excellent  { background: rgba(74,255,122,0.2); color: var(--good); }
+  .verdict.solide     { background: rgba(100,150,255,0.2); color: #7aa8ff; }
+  .verdict.discutable { background: rgba(255,157,58,0.2); color: var(--warn); }
+  .verdict.mauvais    { background: rgba(255,90,90,0.2); color: var(--bad); }
+  .verdict-plus       { background: rgba(247,181,0,0.2); color: var(--accent); }
+
+  .threats {
+    background: rgba(255, 90, 90, 0.1); border-left: 3px solid var(--bad);
+    padding: 6px 10px; border-radius: 3px; font-size: 12px; margin-top: 6px;
+  }
+  .threats.none { background: transparent; border-left-color: transparent; color: var(--muted); padding: 6px 0; }
+
+  .moves {
+    max-height: 260px; overflow-y: auto;
+    font-family: 'SF Mono', ui-monospace, monospace;
+    font-size: 12px; background: var(--panel-2);
+    border-radius: 6px; padding: 8px;
+  }
+  .move-row { padding: 4px; border-radius: 3px; }
   .move-row:nth-child(odd) { background: rgba(255,255,255,0.02); }
-  .move-row .n { color: var(--muted); }
+  .move-row .head { display: flex; gap: 6px; align-items: baseline; }
+  .move-row .n { color: var(--muted); width: 28px; }
   .move-row .side { font-size: 14px; }
-  .move-row .note { color: var(--muted); font-size: 11px; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .move-row .t { color: var(--muted); font-size: 11px; }
+  .move-row .not { font-weight: 500; }
+  .move-row .t { color: var(--muted); font-size: 10px; margin-left: auto; }
+  .move-row .fallback { color: var(--bad); font-size: 10px; }
+  .move-row .conf { font-size: 10px; padding: 1px 4px; border-radius: 2px; margin-left: 6px; }
+  .move-row .conf.high { background: rgba(74,255,122,0.15); color: var(--good); }
+  .move-row .conf.medium { background: rgba(247,181,0,0.15); color: var(--accent); }
+  .move-row .conf.low { background: rgba(255,90,90,0.15); color: var(--bad); }
+  .move-row .thought { color: var(--muted); font-size: 11px; font-style: italic; margin-top: 2px; line-height: 1.4; padding-left: 34px; }
+
+  .lessons {
+    background: rgba(74,255,122,0.08); border-left: 3px solid var(--good);
+    border-radius: 3px; padding: 10px; font-size: 12px; margin-top: 10px;
+  }
+  .lessons .lesson { margin-top: 4px; }
+  .lessons .lesson strong { color: var(--good); }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div>
-    <h1>Dames internationales <span class="sub">duel de LLM locaux</span></h1>
+    <h1>Dames internationales <span class="sub">joueurs LLM aguerris</span></h1>
     <div class="board-wrap">
       <div class="ranks" id="ranks"></div>
       <div class="board" id="board"></div>
@@ -199,6 +201,7 @@
   </div>
   <div class="panel">
     <div class="controls"><button id="start">Lancer une partie</button></div>
+
     <div class="players">
       <div class="player" id="p-b">
         <div><span class="dot b"></span>Noirs</div>
@@ -211,18 +214,36 @@
         <span class="material" id="mat-w"></span>
       </div>
     </div>
+
     <div class="status" id="status">Prêt à démarrer.</div>
-    <div class="moves-head">Coups joués</div>
+
+    <div class="section-head">Analyse du coup en cours</div>
+    <div class="analysis" id="analysis">
+      <div class="analysis-row"><span class="label">Phase</span><span id="a-phase">—</span></div>
+      <div class="analysis-row"><span class="label">Éval. statique</span><span id="a-score">—</span></div>
+      <div class="threats" id="a-threats">—</div>
+      <div class="section-head" style="margin: 8px 0 4px">Top candidats</div>
+      <ul class="candidates" id="a-cands"></ul>
+    </div>
+
+    <div class="section-head">Coups joués</div>
     <div class="moves" id="moves"></div>
+
+    <div id="lessons-wrap"></div>
   </div>
 </div>
 <script>
-  const boardEl  = document.getElementById('board')
-  const ranksEl  = document.getElementById('ranks')
-  const filesEl  = document.getElementById('files')
+  const boardEl = document.getElementById('board')
+  const ranksEl = document.getElementById('ranks')
+  const filesEl = document.getElementById('files')
   const statusEl = document.getElementById('status')
-  const movesEl  = document.getElementById('moves')
+  const movesEl = document.getElementById('moves')
   const startBtn = document.getElementById('start')
+  const aPhase = document.getElementById('a-phase')
+  const aScore = document.getElementById('a-score')
+  const aThreats = document.getElementById('a-threats')
+  const aCands = document.getElementById('a-cands')
+  const lessonsWrap = document.getElementById('lessons-wrap')
 
   for (let i = 10; i >= 1; i--) ranksEl.insertAdjacentHTML('beforeend', `<div>${i}</div>`)
   for (const f of 'abcdefghij') filesEl.insertAdjacentHTML('beforeend', `<div>${f}</div>`)
@@ -236,12 +257,11 @@
 
   let currentBoard = null
   let lastMove = null
+  let currentAnalysis = null
+  let currentChoice = null
 
-  function emptyBoard() {
-    return Array.from({ length: 10 }, () => Array(10).fill('.'))
-  }
-
-  function initialBoard() {
+  const emptyBoard = () => Array.from({ length: 10 }, () => Array(10).fill('.'))
+  const initialBoard = () => {
     const b = emptyBoard()
     for (let r = 0; r < 4; r++) for (let c = 0; c < 10; c++) if (isDark(r, c)) b[r][c] = 'b'
     for (let r = 6; r < 10; r++) for (let c = 0; c < 10; c++) if (isDark(r, c)) b[r][c] = 'w'
@@ -271,7 +291,7 @@
           }
           if (lastMove) {
             if (lastMove.from[0] === r && lastMove.from[1] === c) sq.classList.add('last-from')
-            if (lastMove.to[0]   === r && lastMove.to[1]   === c) sq.classList.add('last-to')
+            if (lastMove.to[0] === r && lastMove.to[1] === c) sq.classList.add('last-to')
             if (lastMove.captured && lastMove.captured.some(([cr, cc]) => cr === r && cc === c))
               sq.classList.add('captured')
           }
@@ -295,12 +315,76 @@
     document.getElementById('mat-b').textContent = `${m.bp}p ${m.bk}D`
   }
 
+  function renderAnalysis(analysis, chosenNotation) {
+    if (!analysis) return
+    aPhase.textContent = analysis.phase
+    aScore.textContent = (analysis.staticScore > 0 ? '+' : '') + analysis.staticScore
+    if (analysis.threats.count === 0) {
+      aThreats.className = 'threats none'
+      aThreats.textContent = 'Aucune menace immédiate.'
+    } else {
+      aThreats.className = 'threats'
+      aThreats.innerHTML = `<strong>${analysis.threats.count}</strong> prise(s) adverse possible(s) — rafle max ${analysis.threats.worst}, cases menacées : ${analysis.threats.targets.join(', ') || '—'}`
+    }
+    aCands.innerHTML = ''
+    for (const c of analysis.topCandidates) {
+      const li = document.createElement('li')
+      const isChosen = chosenNotation && c.notation === chosenNotation
+      if (isChosen) li.className = 'chosen'
+      const vcls = c.verdict.startsWith('mauvais') ? 'mauvais' : c.verdict
+      const reply = c.bestReply ? ` <span style="color:var(--muted)">↷ ${c.bestReply}</span>` : ''
+      const gain = c.immediateGain > 0 ? ` <span class="verdict verdict-plus">+${c.immediateGain}</span>` : ''
+      li.innerHTML = `<span>${c.notation}${gain}${reply}</span><span class="verdict ${vcls}">${c.verdict}</span>`
+      aCands.appendChild(li)
+    }
+  }
+
+  function renderMove(msg) {
+    const name = msg.color === 'w' ? 'Blancs' : 'Noirs'
+    const side = msg.color === 'w' ? '○' : '●'
+    const row = document.createElement('div')
+    row.className = 'move-row'
+    const fallback = msg.source === 'evaluator' ? `<span class="fallback">[fallback]</span>` : ''
+    row.innerHTML =
+      `<div class="head">` +
+        `<span class="n">${msg.moveNumber}.</span>` +
+        `<span class="side">${side}</span>` +
+        `<span class="not">${msg.notation}</span>` +
+        `<span class="conf ${msg.confidence}">${msg.confidence}</span>` +
+        fallback +
+        `<span class="t">${msg.time}s</span>` +
+      `</div>` +
+      (msg.thinking ? `<div class="thought">« ${escapeHtml(msg.thinking)} »</div>` : '')
+    movesEl.appendChild(row)
+    movesEl.scrollTop = movesEl.scrollHeight
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+  }
+
+  function addLesson(msg) {
+    let lessonsEl = document.getElementById('lessons')
+    if (!lessonsEl) {
+      lessonsWrap.innerHTML = `<div class="lessons" id="lessons"><strong>Leçons apprises (sauvegardées)</strong></div>`
+      lessonsEl = document.getElementById('lessons')
+    }
+    const d = document.createElement('div')
+    d.className = 'lesson'
+    const side = msg.color === 'w' ? 'Blancs' : 'Noirs'
+    d.innerHTML = `<strong>${side}</strong> (${msg.result}) : « ${escapeHtml(msg.lesson)} »`
+    lessonsEl.appendChild(d)
+  }
+
   startBtn.onclick = () => {
     startBtn.disabled = true
     movesEl.innerHTML = ''
+    lessonsWrap.innerHTML = ''
     lastMove = null
     currentBoard = initialBoard()
+    currentAnalysis = null
     render()
+    renderAnalysis({ phase: '—', staticScore: 0, threats: { count: 0, worst: 0, targets: [] }, topCandidates: [] })
     statusEl.className = 'status'
     statusEl.textContent = 'Connexion…'
 
@@ -323,47 +407,41 @@
         case 'thinking': {
           const name = msg.color === 'w' ? 'Blancs' : 'Noirs'
           statusEl.className = 'status thinking'
-          statusEl.textContent = `${name} (${msg.model}) réfléchit…`
+          statusEl.textContent = `${name} (${msg.model}) analyse la position…`
           break
         }
         case 'move': {
           const name = msg.color === 'w' ? 'Blancs' : 'Noirs'
           statusEl.className = 'status'
-          statusEl.textContent = `Coup ${msg.moveNumber} — ${name} : ${msg.notation} (${msg.time}s)`
-          const row = document.createElement('div')
-          row.className = 'move-row'
-          const side = msg.color === 'w' ? '○' : '●'
-          row.innerHTML =
-            `<span class="n">${msg.moveNumber}.</span>` +
-            `<span class="side">${side}</span>` +
-            `<span><strong>${msg.notation}</strong> <span class="note">${msg.reasoning || ''}</span></span>` +
-            `<span class="t">${msg.time}s</span>`
-          movesEl.appendChild(row)
-          movesEl.scrollTop = movesEl.scrollHeight
+          statusEl.textContent = `Coup ${msg.moveNumber} — ${name} : ${msg.notation} (${msg.time}s, conf. ${msg.confidence})`
+          renderAnalysis(msg.analysis, msg.notation)
+          renderMove(msg)
           break
         }
+        case 'reflecting':
+          statusEl.textContent = 'Réflexion post-partie — les modèles écrivent leurs leçons…'
+          break
+        case 'lesson':
+          addLesson(msg)
+          break
         case 'end':
           statusEl.className = 'status win'
           if (msg.winner)
             statusEl.textContent = `Terminé : ${msg.winner === 'w' ? 'Blancs' : 'Noirs'} gagnent (${msg.reason})`
           else
             statusEl.textContent = `Terminé : nulle (${msg.reason})`
-          startBtn.disabled = false
-          evt.close()
           break
         case 'error':
           statusEl.className = 'status'
           statusEl.textContent = 'Erreur : ' + msg.message
-          startBtn.disabled = false
-          evt.close()
           break
       }
     }
     evt.onerror = () => {
-      statusEl.textContent = 'Connexion interrompue.'
-      startBtn.disabled = false
       evt.close()
+      startBtn.disabled = false
     }
+    evt.addEventListener('close', () => { startBtn.disabled = false; evt.close() })
   }
 </script>
 </body>
